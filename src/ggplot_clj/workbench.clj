@@ -24,23 +24,10 @@
 (scatter-plot x-seq y-seq
               :plot-type :points
               :graph-size (Vector. 700 500)
-              :point-color (solarized-rgb :red))
+              :point-color [220 50 47]
+              :framerate 1)
+
+;;(solarized-rgb :red)
   
 (stop ggplot)
 
-
-(let [size (:plot-size sample-plot)
-        margins (:margins sample-plot)
-        grid-color (:grid *default-colors*)
-        tick-color (:tick *default-colors*)
-        x-scale (train-linear-scale x-seq)
-        y-scale (train-linear-scale y-seq)
-        x-map
-        (train-mapping :x-axis x-scale (map :x (plot-area size margins)))
-        y-map
-        (train-mapping :y-axis y-scale (map :y (plot-area size margins)))
-        ]
-    (pprint x-scale)
-    (pprint (map x-map  x-scale))
-    (pprint y-scale)
-    (pprint (map y-map  y-scale)))

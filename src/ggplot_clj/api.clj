@@ -2,7 +2,8 @@
   (:use [clojure repl pprint [string :only (split)]]
         [ggplot-clj constants core]
         rosado.processing.applet
-        rosado.processing)
+        rosado.processing
+        [clojure-utils.collections])
   (:import [ggplot_clj.core Plot Vector Scale]))
 
 (defn draw-plot
@@ -28,7 +29,7 @@
     ))
 
 (defn scatter-plot [x-seq y-seq & opts]
-  (let [opt  (to-map opts)
+  (let [opt  (coll2map opts)
         plot (Plot.
               (getopt :graph-up-left)
               (getopt :graph-size)
@@ -36,8 +37,9 @@
         x-axis (train-linear-scale plot x-seq :x)
         y-axis (train-linear-scale plot y-seq :y)
         draw-data (if (=  (getopt :plot-type) :points)
-                    (fn [] (draw-data-points plot x-axis y-axis x-seq y-seq opts ))
-                    (fn [] (draw-data-line plot x-axis y-axis x-seq y-seq opts )) ) ]
+                    (fn [] (draw-data-points plot x-axis y-axis x-seq y-seq opt ))
+                    (fn [] (draw-data-line plot x-axis y-axis x-seq y-seq opt )) ) ]
+    (pprint opt)
     (defapplet ggplot
       :title "ggplot"
       :setup (setup (assoc  opt :init-fns [ [draw-plot [plot x-axis y-axis]]]))

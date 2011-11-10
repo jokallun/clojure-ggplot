@@ -167,7 +167,7 @@
       (ellipse
        (xmap  (first p)) (ymap (second p)) point-size point-size)))
   )
-
+ 
 (defn draw-data-line
   [^Plot plot ^Scale x-axis ^Scale y-axis x-data y-data & opts]
   ( let [opt (coll2map opts)  

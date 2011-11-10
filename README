@@ -1,10 +1,8 @@
 # ggplot-clj
 
-This project is intended to provide a easy and flexible way for plotting data with clojure. 
-The grand goal would be to imitate the ggplot package for R ( http://had.co.nz/ggplot/ ).  
+This project is intended to provide a easy and flexible way for plotting data with clojure. The grand goal would be to imitate the ggplot package for R ( http://had.co.nz/ggplot/ ).  
  
-Plotting utility wii be built on processing (http://www.processing.org/) , using the
-clojure wrapper for processing written by Roland Sadowski (https://github.com/rosado/clj-processing)
+Plotting utility wii be built on processing (http://www.processing.org/) , using the clojure wrapper for processing written by Roland Sadowski (https://github.com/rosado/clj-processing)
 
 ## Usage
 

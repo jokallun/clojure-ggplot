@@ -1,13 +1,22 @@
 # ggplot-clj
 
-FIXME: write description
+This project is intended to provide a easy and flexible way for plotting data with clojure. 
+The grand goal would be to imitate the ggplot package for R ( http://had.co.nz/ggplot/ ).  
+ 
+Plotting utility wii be built on processing (http://www.processing.org/) , using the
+clojure wrapper for processing written by Roland Sadowski (https://github.com/rosado/clj-processing)
 
 ## Usage
 
-FIXME: write
+Not there yet...
 
 ## License
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-Copyright (C) 2011 FIXME
-
-Distributed under the Eclipse Public License, the same as Clojure.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License <http://www.gnu.org/licenses/> for more details.

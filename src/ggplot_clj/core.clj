@@ -2,8 +2,7 @@
   (:use [clojure repl pprint [string :only (split)]]
         [rosado.processing]
         [rosado.processing.applet]
-        [ggplot-clj.constants]
-        [clojure-utils.collections]))
+        [ggplot-clj.constants]))
 
 (defrecord Vector [x y])
 
@@ -20,7 +19,15 @@
 (defrecord  Scale [range  mapping type])
 
 (def ^:dynamic *default-opts*
-  {:framerate 5
+  {:title "ggplot"
+   :framerate 5
+   :draw-plot-area-bg true
+   :draw-grid-x true
+   :draw-grid-y true
+   :draw-tickmarks-x true
+   :draw-tickmarks-y true
+   :draw-ticklabels-x true
+   :draw-ticklabels-y true
    :graph-size (Vector. 750 550)
    :graph-up-left (Vector. 0 0)
    :plot-margins {:top 0.05 :bottom 0.075 :left 0.075 :right 0.05}
@@ -38,11 +45,30 @@
    :font-size 15
    :line-type :plain
    :mountain-color (solarized-rgb :base01)
+   :bar-color (solarized-rgb :base01)
    }
   )
 
 ;;======================
-;; ==== Drawing elements ===
+;; ==== Utils =============
+(defn mapkeys
+  "Apply function f to all keys in map m. m can be any sequence that
+  has 2-tuples as elements (can be interpreted as map). Returns a map."
+  [f m]
+  (into {} (for [[k v] m] [(f  k) v]))
+  )
+
+(defn coll2map
+  "Make a map from a collection, by partitioning it by 2.
+  Function f is applied to the keys (element 0,2,4...  in the input collection).
+  Default function f is keyword"
+  ([coll] (coll2map keyword coll) )
+  ([f coll]
+     (cond
+      (nil? coll) {}
+      (and (-> coll count (= 1)) (-> coll first coll?)) (coll2map (first coll))
+      (map? coll) coll
+      :else ( mapkeys f (partition 2 coll)))))
 
 (defmacro  getopt
   "Helper macro to get option 'key' from map
@@ -53,11 +79,6 @@
 (defn x->y [xy]
   (if (= xy :x)    :y    :x))
 
-;; (defn to-map [opts]
-;;   (cond
-;;    (map? opts) opts
-;;    (nil? opts) {}   
-;;       (apply assoc  {} (or  opts [nil nil]))))
 
 (defn plot-area
   "Determines what is the plot area (i.e. where
@@ -71,7 +92,11 @@
            low-right-x (* (- 1 (:right margin)) (:x size))
            low-right-y (* (- 1 (:bottom margin)) (:y size))]
        [(Vector. up-left-x up-left-y) (Vector. low-right-x low-right-y) ])))
- 
+
+
+; ;====================
+;;====Draw elements====
+
 (defn draw-plot-area
   "Draws the plot area (i.e. where  the data is plotted)
   of a given plot.  This is just a colored rectangle"  
@@ -79,7 +104,6 @@
   (let [opt (coll2map opts) 
         [up-left low-right] (plot-area plot)
         color (getopt :plot-area-bg-color)]
-    (pprint color)
     (no-stroke)
     (apply fill-float color)
     (rect-mode CORNERS)
@@ -149,11 +173,38 @@
                                                   (- (:x up-left) (getopt :tick-length))
                                                   ((:mapping axis) y)))) )))
 
-;; ====== Draw data ============
+(defn draw-bar
+  "Primitive for drawing bar-charts"
+  [^Plot plot  pos height width & opts]
+  (rect-mode CORNERS)
+  (no-stroke)
+  ;;(pprint width)
+  ;;(pprint pos)
+  ;;(pprint height)
+  (let [[up-left low-right] (plot-area plot)
+        w2 (/ width 2)
+        opt (coll2map opts)]
+    (apply fill-float (getopt :bar-color))
+    (rect (- pos w2)  (:y low-right) (+ pos w2) (- (:y low-right) height) )))
+
+
 ;;============================
+;; ====== Draw data ============
+
+(defn draw-data-bars
+  "Bar chart"
+  [^Plot plot ^Scale label-axis ^Scale value-axis labels values & opts]
+  (let [opt (coll2map opts)
+        pos (map (:mapping label-axis) labels)
+        height (map (:mapping value-axis) values)
+        plot-data (interleave pos height)
+        width (* 0.85 (apply - (take 2 pos)))
+        ]
+    (doseq [ [p h] (partition 2 plot-data) ]
+      (draw-bar plot p h width opt ))))
 
 (defn draw-data-points
-  [^Plot plot ^Scale x-axis ^Scale y-axis x-data y-data & opts]
+  [^Scale x-axis ^Scale y-axis x-data y-data & opts]
   ( let [opt (coll2map opts) 
          point-seq (partition 2 (interleave x-data y-data))
          color (getopt :point-color)
@@ -169,7 +220,7 @@
   )
  
 (defn draw-data-line
-  [^Plot plot ^Scale x-axis ^Scale y-axis x-data y-data & opts]
+  [^Scale x-axis ^Scale y-axis x-data y-data & opts]
   ( let [opt (coll2map opts)  
          point-seq (partition 2 (interleave x-data y-data))
          color (getopt :line-color)
@@ -260,7 +311,6 @@
   ;; in opposite order
   (train-mapping :x source-range (reverse target-range)))
 
-
 (defn train-linear-scale
   "Get a linear scale. Direction must be :x or :y"
   [^Plot plot seq direction]
@@ -268,6 +318,19 @@
         plot-range (map direction (plot-area plot))
         mapping (train-mapping direction range plot-range)]
     (Scale. range mapping direction)))
+
+
+(defn train-discrete-scale
+  "Divide an axis into equally long parts"
+  [^Plot plot labels direction]
+  (let  [ [up-left low-right] (plot-area plot)
+          valcnt (count labels)
+          axlen (- (:x low-right) (:x up-left))
+          interval (/ axlen valcnt)
+          pos (range (+ (:x up-left) (/ interval 2)) axlen interval)
+          mapping (apply hash-map (interleave labels pos))]
+        ;; plot-data (interleave pos (map (:mapping value-axis) values))
+        (Scale. labels (fn [key] (get mapping key)) direction)))
 
 ;; =========== Testing here =======
 (comment 

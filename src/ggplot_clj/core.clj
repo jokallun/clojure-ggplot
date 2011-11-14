@@ -203,21 +203,42 @@
     (doseq [ [p h] (partition 2 plot-data) ]
       (draw-bar plot p h width opt ))))
 
-(defn draw-data-points
+(defn draw-data-points-simple
+  "Draw data points with a constant color and size"
   [^Scale x-axis ^Scale y-axis x-data y-data & opts]
-  ( let [opt (coll2map opts) 
+  (let [opt (coll2map opts) 
          point-seq (partition 2 (interleave x-data y-data))
-         color (getopt :point-color)
-         point-size  (getopt :point-size)
          xmap (:mapping x-axis)
-         ymap (:mapping y-axis)]
+         ymap (:mapping y-axis)
+         color (getopt :point-color)
+        point-size ( getopt :point-size )] 
     (ellipse-mode CENTER)
     (no-stroke)
     (apply fill-float color)    
     (doseq [p point-seq]
       (ellipse
-       (xmap  (first p)) (ymap (second p)) point-size point-size)))
-  )
+       (xmap  (first p)) (ymap (second p)) point-size point-size))))
+
+(defn draw-data-points
+  "Draw data points with a variable color and/or  size"
+  [^Scale x-axis ^Scale y-axis  ^Scale color ^Scale size
+   x-data y-data color-data size-data & opts]
+  ( let [opt (coll2map opts)
+         c-data (or color-data
+                    (repeat (count x-data) (getopt :point-color)) )
+         s-data (or  size-data
+                     (repeat (count x-data) (getopt :point-size)) )
+         point-seq (partition 4 (interleave x-data  y-data c-data size-data))
+         xmap (:mapping x-axis)
+         ymap (:mapping y-axis)
+         colormap (if color (:mapping color) (fn [x] x))
+         sizemap (if size  (:mapping size) (fn [x] x))] 
+    (ellipse-mode CENTER)
+    (no-stroke)
+    (doseq [[x y c s] point-seq]
+      (apply fill-float (colormap  c))    
+      (ellipse
+       (xmap  x) (ymap y) (sizemap s) (sizemap s))))  )
  
 (defn draw-data-line
   [^Scale x-axis ^Scale y-axis x-data y-data & opts]
@@ -327,46 +348,8 @@
           valcnt (count labels)
           axlen (- (:x low-right) (:x up-left))
           interval (/ axlen valcnt)
-          pos (range (+ (:x up-left) (/ interval 2)) axlen interval)
-          mapping (apply hash-map (interleave labels pos))]
-        ;; plot-data (interleave pos (map (:mapping value-axis) values))
-        (Scale. labels (fn [key] (get mapping key)) direction)))
-
-;; =========== Testing here =======
-(comment 
-
-  (def myseq (repeatedly 20  #(-  (rand-int 1000) 300)))
-
-
-
-  
-  
-
-  (defn test-setup []
-    (smooth)
-    (framerate 5)
-    (stroke-weight 1)
-    (no-loop))
-
-  (defn test-draw []
-    (text-align LEFT TOP)
-    (text-size 25)
-    (let [kk (sort (keys solarized))
-          nk (count kk)
-          ypos (map #(* (/ y-size nk) %) (range nk))
-          el (partition 2 (interleave kk ypos))]
-      (doseq [ [clr y] el]
-        (apply fill-float (solarized-rgb clr))
-        (rect 0  y x-size (+ y (/ y-size nk)))
-        (fill-int 0)
-        (string->text  (str clr) 20 y)
-        )
-      ))
-
-  (defapplet testbed :title "testbed"
-    :setup test-setup :draw test-draw :size [x-size y-size])
-
-  (run testbed :interactive)
-
-  (stop testbed))
+          pos (range (+ (:x up-left) (/ interval 2)) (:x low-right) interval)
+          mapping (apply hash-map (interleave labels pos))] 
+    ;; plot-data (interleave pos (map (:mapping value-axis) values))
+    (Scale. labels (fn [key] (get mapping key)) direction)))
 

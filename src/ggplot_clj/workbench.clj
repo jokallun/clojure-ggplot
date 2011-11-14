@@ -31,8 +31,8 @@
 (stop ggplot)
 
 
-(def vv [10 20 35 23])
-(def ll  ["a" "bb" "cc" "d"])
+(def vv [20 35 23 33 24 10 3 46 57])
+(def ll  ["bb" "cc" "d" "ff" "lk" "a" "brfe" "lj" "lkkkk"])
 
 (def pl (bar-plot ll vv
                   :framerate 2))

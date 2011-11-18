@@ -1,40 +1,54 @@
 (ns ggplot-clj.workbench 
   (:use [clojure repl pprint]
-        [rosado.processing]
         [rosado.processing.applet]
         [ggplot-clj constants api core] :reload-all)
-  (:import [ggplot_clj.core Plot Vector Scale]))
+  (:import [ggplot_clj.core Plot Vector Scale]
+           [ggplot_clj.api Layer]))
+ 
+(def x-seq (range 0 1 0.01))
 
-(def sample-plot
-  (Plot.
-   (Vector. 0 y-size)
-   (Vector. x-size y-size)
-   {:top 0.05 :bottom 0.075 :left 0.075 :right 0.05}   ))
+(def rnds (repeatedly (fn [] (- 0.0025 (rand 0.005)))))
 
-(def x-seq (range 0 10 0.1))
+(def y-seq-1
+  (let [adder (fn [lst el]  (conj  lst  (+ (first lst) el))  )]
+              (reduce adder '(0) (take (dec  (count x-seq)) rnds) )))
 
-(def y-seq
-  (let [tmp (repeatedly (count x-seq)  #(* 0.05 (-  (rand-int 10) 5)))]
-    (loop [x 0 y tmp s []]
-      (if (empty? y) s
-          (let [this (+ x (first y))] 
-            (recur  this (rest y) (conj s this)))))))
+(def y-seq-2
+  (let [len (dec  (count x-seq))
+        adder (fn [lst el]  (conj  lst  (+ (first lst) el))  )]
+    (->  (reduce adder '(0) (take len (drop len  rnds)) )
+         reverse vec)))
 
-(scatter-plot y-seq x-seq
-              :plot-type :both
-              :graph-size (Vector. 700 500)
-              :point-color (solarized-rgb :red)
-              :line-color (solarized-rgb :magenta)
-              :line-size 5.5 
-              :framerate 1)
+(def size-seq
+  (let [len (dec  (count x-seq))
+        adder (fn [lst el]  (conj  lst  (+ (first lst) el))  )]
+    (->  (reduce adder '(0) (take len (drop (* 2 len)  rnds)) )
+         reverse vec)))
 
-(stop ggplot)
+(defn make-plot [data layers & opts ]
+  (let [opt (coll2map opts)
+        plot (new-plot opt)
+        scales (train-scales plot layers data)
+        draw-fns (compose-draw-fns
+                  :layers layers
+                  :data data
+                  :scales scales )
+        init-fns [(fn [] (draw-plot-bg plot (:x scales) (:y scales)))] ]
+    {:setup (setup (assoc opt :init-fns init-fns)),
+     :draw (fn [] (doseq  [f (concat  init-fns draw-fns )] (f) ))}))
+
+(let [ opt  {:graph-size (Vector. 450 350) }
+      plot-data {:var1 x-seq :var2 y-seq-1 :var3 y-seq-2 :var4 size-seq}
+      pnt (get-layer
+           :aes {:x :var1 :y :var3 :size :var4}
+           :geom :point)
+      lne (get-layer
+           :aes {:x :var1 :y :var2}
+           :geom :line
+           :line-color (solarized-rgb :red))
+      applet-map (make-plot plot-data [pnt lne] opt)]
+  (run-ggplot aname  applet-map opt ))
 
 
-(def vv [20 35 23 33 24 10 3 46 57])
-(def ll  ["bb" "cc" "d" "ff" "lk" "a" "brfe" "lj" "lkkkk"])
+(stop aname)
 
-(def pl (bar-plot ll vv
-                  :framerate 2))
-
-(stop a-bar-plot)

@@ -18,6 +18,7 @@
 ;; type:   the type of the scale (e.g. :x :y :color etc)
 (defrecord  Scale [range  mapping type])
 
+
 (def ^:dynamic *default-opts*
   {:title "ggplot"
    :framerate 5
@@ -46,9 +47,11 @@
    :line-type :plain
    :mountain-color (solarized-rgb :base01)
    :bar-color (solarized-rgb :base01)
-   }
+   :min-point-size 1
+   :max-point-size 25
+   :size-scale-type :point-size-area   }
   )
-
+ 
 ;;======================
 ;; ==== Utils =============
 (defn mapkeys
@@ -93,22 +96,8 @@
            low-right-y (* (- 1 (:bottom margin)) (:y size))]
        [(Vector. up-left-x up-left-y) (Vector. low-right-x low-right-y) ])))
 
-
-; ;====================
-;;====Draw elements====
-
-(defn draw-plot-area
-  "Draws the plot area (i.e. where  the data is plotted)
-  of a given plot.  This is just a colored rectangle"  
-  [^Plot plot & opts]
-  (let [opt (coll2map opts) 
-        [up-left low-right] (plot-area plot)
-        color (getopt :plot-area-bg-color)]
-    (no-stroke)
-    (apply fill-float color)
-    (rect-mode CORNERS)
-    (rect (:x up-left) (:y up-left) (:x low-right) (:y low-right)))
-  )
+;; == Functions for drawing some primitive elements ==
+;;============================================
 
 (defn- lines-along-xy 
   "Draws lines parallel to  :x or :y axis. Lines are drawn at locations
@@ -123,6 +112,35 @@
             (= axis :x) (interleave [start end] [e e])
             (= axis :y) (interleave  [e e] [start end])))))
 
+
+(defn draw-bar
+  "Primitive for drawing bar-charts"
+  [^Plot plot  pos height width & opts]
+  (rect-mode CORNERS)
+  (no-stroke)
+  (let [[up-left low-right] (plot-area plot)
+        w2 (/ width 2)
+        opt (coll2map opts)]
+    (apply fill-float (getopt :bar-color))
+    (rect (- pos w2)  (:y low-right) (+ pos w2) (- (:y low-right) height) )))
+
+
+;; == Functions for drawing plot background elements==
+;=============================================
+
+(defn draw-plot-area
+  "Draws the plot area (i.e. where  the data is plotted)
+  of a given plot.  This is just a colored rectangle"  
+  [^Plot plot & opts]
+  (let [opt (coll2map opts) 
+        [up-left low-right] (plot-area plot)
+        color (getopt :plot-area-bg-color)]
+    (no-stroke)
+    (apply fill-float color)
+    (rect-mode CORNERS)
+    (rect (:x up-left) (:y up-left) (:x low-right) (:y low-right))))
+
+
 (defn draw-grid
   "Draws grid lines for  'axis' "
   [^Plot plot ^Scale axis & opts]
@@ -134,6 +152,7 @@
         (lines-along-xy (map (:mapping axis) (:range axis))
                         (direction up-left) (direction low-right)
                         color wt direction)))
+
 
 (defn draw-tick-marks
   "Draws tick marks to 'axis'"
@@ -150,6 +169,14 @@
      (= (:type  axis) :y) (lines-along-xy
                            ticks (- (:x up-left) half ) (+ (:x up-left) half )  color wt :x))))
 
+
+(defn rounded-string [x]
+  (let  [ [fc ex] (map read-string (split (format "%E" x) #"E"))
+          fmt (str "%." (Math/max   (- 1 ex) 0) "f" )]
+    (format fmt x))
+  )
+
+
 (defn draw-tick-labels
   "Writes positions of tick marks to 'axis' "
   [^Plot plot ^Scale axis & opts]
@@ -162,34 +189,40 @@
                                (text-align CENTER TOP)
                                (doseq
                                       [x (:range axis)]
-                                 (string->text (str x)  ;; text
+                                 (string->text (rounded-string x)  ;; text
                                                   ((:mapping axis) x) ;; x-coord
                                                   (+ (:y low-right) (getopt :tick-length))))) ;;ycoord
         (= (:type  axis) :y) (do
                                (text-align RIGHT CENTER)
                                (doseq
                                       [y (:range axis)]
-                                    (string->text (str y)  ;; text
+                                    (string->text (rounded-string y)  ;; text
                                                   (- (:x up-left) (getopt :tick-length))
                                                   ((:mapping axis) y)))) )))
 
-(defn draw-bar
-  "Primitive for drawing bar-charts"
-  [^Plot plot  pos height width & opts]
-  (rect-mode CORNERS)
-  (no-stroke)
-  ;;(pprint width)
-  ;;(pprint pos)
-  ;;(pprint height)
-  (let [[up-left low-right] (plot-area plot)
-        w2 (/ width 2)
-        opt (coll2map opts)]
-    (apply fill-float (getopt :bar-color))
-    (rect (- pos w2)  (:y low-right) (+ pos w2) (- (:y low-right) height) )))
 
+(defn draw-plot-bg
+  "Draw basic background elements of the plot
+  Valid opitions and their defaults (all booleans):
+    :draw-plot-area-bg true
+   :draw-grid-x true
+   :draw-grid-y true
+   :draw-tickmarks-x true
+   :draw-tickmarks-y true
+   :draw-ticklabels-x true
+   :draw-ticklabels-y true "
+  [^Plot plot ^Scale x-axis ^Scale y-axis & opts]
+  (let [opt (coll2map opts)]
+    (when (getopt :draw-plot-area-bg) (draw-plot-area plot))
+    (when (getopt :draw-grid-x) (draw-grid plot x-axis))
+    (when (getopt :draw-grid-y) (draw-grid plot y-axis))
+    (when (getopt :draw-tickmarks-x)(draw-tick-marks plot x-axis))
+    (when (getopt :draw-tickmarks-y)(draw-tick-marks plot y-axis))
+    (when (getopt :draw-ticklabels-x)(draw-tick-labels plot x-axis))
+    (when (getopt :draw-ticklabels-y)(draw-tick-labels plot y-axis))))
 
-;;============================
-;; ====== Draw data ============
+;; == Functions for drawing plot data representation elements ==
+;;====================================================
 
 (defn draw-data-bars
   "Bar chart"
@@ -203,42 +236,27 @@
     (doseq [ [p h] (partition 2 plot-data) ]
       (draw-bar plot p h width opt ))))
 
-(defn draw-data-points-simple
-  "Draw data points with a constant color and size"
-  [^Scale x-axis ^Scale y-axis x-data y-data & opts]
-  (let [opt (coll2map opts) 
-         point-seq (partition 2 (interleave x-data y-data))
-         xmap (:mapping x-axis)
-         ymap (:mapping y-axis)
-         color (getopt :point-color)
-        point-size ( getopt :point-size )] 
-    (ellipse-mode CENTER)
-    (no-stroke)
-    (apply fill-float color)    
-    (doseq [p point-seq]
-      (ellipse
-       (xmap  (first p)) (ymap (second p)) point-size point-size))))
 
 (defn draw-data-points
   "Draw data points with a variable color and/or  size"
   [^Scale x-axis ^Scale y-axis  ^Scale color ^Scale size
    x-data y-data color-data size-data & opts]
-  ( let [opt (coll2map opts)
-         c-data (or color-data
-                    (repeat (count x-data) (getopt :point-color)) )
-         s-data (or  size-data
-                     (repeat (count x-data) (getopt :point-size)) )
-         point-seq (partition 4 (interleave x-data  y-data c-data size-data))
-         xmap (:mapping x-axis)
-         ymap (:mapping y-axis)
-         colormap (if color (:mapping color) (fn [x] x))
-         sizemap (if size  (:mapping size) (fn [x] x))] 
+  (let [opt (coll2map opts)
+        c-data (or color-data
+                   (repeat (count x-data) (getopt :point-color)) )
+        s-data (or  size-data
+                    (repeat (count x-data) (getopt :point-size)) )
+        point-seq (partition 4 (interleave x-data  y-data c-data s-data))
+        xmap (:mapping x-axis)
+        ymap (:mapping y-axis)
+        colormap (if color (:mapping color) (fn [x] x))
+        sizemap (if size  (:mapping size) (fn [x] x))] 
     (ellipse-mode CENTER)
     (no-stroke)
     (doseq [[x y c s] point-seq]
       (apply fill-float (colormap  c))    
       (ellipse
-       (xmap  x) (ymap y) (sizemap s) (sizemap s))))  )
+       (xmap  x) (ymap y) (sizemap s) (sizemap s)))))
  
 (defn draw-data-line
   [^Scale x-axis ^Scale y-axis x-data y-data & opts]
@@ -284,11 +302,11 @@
       (vertex (xmap px) (ymap py))
       (vertex (xmap px) (:y low-right)))
     (end-shape CLOSE)
-    (draw-grid plot x-axis :grid-color [255 255 255]))
-  )
+    (draw-grid plot x-axis :grid-color [255 255 255])) )
 
-;; ==== Fitting scales =====
-;;=====================
+
+;; == Functions for fitting and creating scales ==
+;;=====================================
 
 (defn- natural-scale [d]
   (let [ [fc ex] (map read-string (split (format "%E" d) #"E"))
@@ -298,17 +316,18 @@
         tick
         (recur (/ tick 2)))) ))
 
-(defn get-range 
+(defn- get-range 
   "Fit the range of a linear axis and its tick marks
   to the data in seq"
   [seq]
   (let [mx (reduce max seq)
         mn (reduce min seq)
         tick-size (natural-scale (double  (- mx mn)))]
-    (range
-     (* tick-size  (Math/floor (/ mn tick-size)))
-     (* tick-size  (inc  (Math/ceil (/ mx tick-size))))
-     tick-size)))
+    (map (fn [x] (if (< (Math/abs  x) (* 0.1 tick-size) ) 0.0  x ))
+         (range
+          (* tick-size  (Math/floor (/ mn tick-size)))
+          (* tick-size  (inc  (Math/ceil (/ mx tick-size))))
+          tick-size))))
 
 (defmulti train-mapping
   "Create a function to map from the data to the
@@ -323,14 +342,33 @@
         coeff (/
                (- target-mx target-mn)
                (- source-mx source-mn)) ]
-    (fn [x] (+ target-mn  (* (- x source-mn) coeff)))
-   ))
+    (fn [x] (+ target-mn  (* (- x source-mn) coeff)))))
 
 (defmethod train-mapping :y [ _ source-range target-range & opts]
   ;; processing defines the y coordinate as distance from upper limit
   ;; downwards and therefore the target range must be defined
   ;; in opposite order
   (train-mapping :x source-range (reverse target-range)))
+
+
+(defmethod train-mapping :point-size-radius [ _ source-range target-range & opts]
+  ;; this is identical to x-scale, it's just a linear mapping form
+  ;; variable value to the poin radius
+  (train-mapping :x source-range target-range opts)
+  )
+
+(defmethod train-mapping :point-size-area [ _ source-range target-range & opts]
+  ;; this is alsmost identical to x-scale, instead of
+  ;;being linear, the mapping function is sqrt
+  (let [source-mx (first (reverse source-range)) 
+        source-mn (first source-range)  
+        target-mx (first (reverse target-range)) 
+        target-mn (first target-range)  
+        coeff (/
+               (- target-mx target-mn)
+               (Math/sqrt  (- source-mx source-mn))) ]
+    (fn [x] (+ target-mn  (* (Math/sqrt  (- x source-mn)) coeff))) ))
+
 
 (defn train-linear-scale
   "Get a linear scale. Direction must be :x or :y"
@@ -339,7 +377,6 @@
         plot-range (map direction (plot-area plot))
         mapping (train-mapping direction range plot-range)]
     (Scale. range mapping direction)))
-
 
 (defn train-discrete-scale
   "Divide an axis into equally long parts"
@@ -353,3 +390,31 @@
     ;; plot-data (interleave pos (map (:mapping value-axis) values))
     (Scale. labels (fn [key] (get mapping key)) direction)))
 
+(defn train-size-scale
+  "Get a size scale."
+  [seq & opts]
+  (let [opt (coll2map opts)
+        range (get-range seq)
+        size-range [(getopt :min-point-size) (getopt :max-point-size) ]
+        mapping (train-mapping (getopt :size-scale-type ) range size-range)]
+    (Scale. range mapping (getopt :size-scale-type ) )))
+
+
+(comment ;; ==Removed code==
+
+  (defn draw-data-points-simple
+  "Draw data points with a constant color and size"
+  [^Scale x-axis ^Scale y-axis x-data y-data & opts]
+  (let [opt (coll2map opts) 
+         point-seq (partition 2 (interleave x-data y-data))
+         xmap (:mapping x-axis)
+         ymap (:mapping y-axis)
+         color (getopt :point-color)
+        point-size ( getopt :point-size )] 
+    (ellipse-mode CENTER)
+    (no-stroke)
+    (apply fill-float color)    
+    (doseq [p point-seq]
+      (ellipse
+       (xmap  (first p)) (ymap (second p)) point-size point-size))))
+  )

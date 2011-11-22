@@ -25,17 +25,7 @@
     (->  (reduce adder '(0) (take len (drop (* 2 len)  rnds)) )
          reverse vec)))
 
-(defn make-plot [data layers & opts ]
-  (let [opt (coll2map opts)
-        plot (new-plot opt)
-        scales (train-scales plot layers data)
-        draw-fns (compose-draw-fns
-                  :layers layers
-                  :data data
-                  :scales scales )
-        init-fns [(fn [] (draw-plot-bg plot (:x scales) (:y scales)))] ]
-    {:setup (setup (assoc opt :init-fns init-fns)),
-     :draw (fn [] (doseq  [f (concat  init-fns draw-fns )] (f) ))}))
+
 
 (let [ opt  {:graph-size (Vector. 450 350) }
       plot-data {:var1 x-seq :var2 y-seq-1 :var3 y-seq-2 :var4 size-seq}
@@ -48,6 +38,16 @@
            :line-color (solarized-rgb :red))
       applet-map (make-plot plot-data [pnt lne] opt)]
   (run-ggplot aname  applet-map opt ))
+
+(let [ opt  {:graph-size (Vector. 750 450) :framerate 1 }
+      plot-data {:dum1 ["a" "bb" "ccc"] :dum2 [10 20 30]}
+      pnt (get-layer
+           :aes {:label :dum1 :height :dum2 }
+           :geom :bar)
+      applet-map (make-plot plot-data [pnt] opt)]
+  (run-ggplot aname  applet-map opt )
+  ;;applet-map
+  )
 
 
 (stop aname)

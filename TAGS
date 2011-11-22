@@ -1,0 +1,64 @@
+
+src/ggplot_clj/api.clj,443
+(defrecord Layer 13,502
+(defn get-layer15,559
+(defn setup24,884
+(defn new-plot41,1433
+(defn  geom-point50,1608
+(defn add-data57,1885
+(defn get-data65,2134
+(defmulti get-draw-fn73,2423
+(defmethod get-draw-fn 77,2545
+(defmethod get-draw-fn 85,2884
+(defmethod get-draw-fn 93,3193
+(defn compose-draw-fns 101,3470
+(defn- one-dimension-data111,3825
+(defn train-scales116,4008
+(defn scatter-plot 133,4962
+(defmacro run-ggplot149,5580
+
+src/ggplot_clj/constants.clj,84
+(def x-size 4,58
+(def y-size 5,75
+(def solarized7,93
+(defn solarized-rgb 25,742
+
+src/ggplot_clj/core.clj,891
+(defrecord Vector 7,171
+(defrecord  Scale 19,682
+(def ^:dynamic 22,725
+(defn mapkeys57,1697
+(defn coll2map64,1904
+(defmacro  getopt76,2322
+(defn x->y 82,2488
+(defn plot-area86,2536
+(defn- lines-along-xy 102,3186
+(defn draw-bar116,3649
+(defn draw-plot-area130,4024
+(defn draw-grid143,4438
+(defn draw-tick-marks156,4892
+(defn rounded-string 172,5502
+(defn draw-tick-labels178,5702
+(defn draw-plot-bg202,6835
+(defn draw-data-bars225,7780
+(defn draw-data-points240,8365
+(defn draw-data-line261,9206
+(defn draw-data-mountain283,9881
+(defn- natural-scale 311,10810
+(defn- get-range 319,11026
+(defmulti train-mapping332,11463
+(defmethod train-mapping 337,11623
+(defmethod train-mapping 347,12026
+(defmethod train-mapping 354,12307
+(defmethod train-mapping 360,12552
+(defn train-linear-scale373,13098
+(defn train-discrete-scale382,13410
+(defn train-size-scale394,13945
+
+src/ggplot_clj/workbench.clj,121
+(def x-seq 8,229
+(def rnds 10,259
+(def y-seq-112,316
+(def y-seq-216,464
+(def size-seq22,657
+(defn make-plot 28,857

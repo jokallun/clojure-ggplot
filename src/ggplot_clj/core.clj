@@ -115,14 +115,15 @@
 
 (defn draw-bar
   "Primitive for drawing bar-charts"
-  [^Plot plot  pos height width & opts]
+  [ pos height width y0 & opts]
   (rect-mode CORNERS)
   (no-stroke)
-  (let [[up-left low-right] (plot-area plot)
-        w2 (/ width 2)
+  (let [ w2 (/ width 2)
         opt (coll2map opts)]
     (apply fill-float (getopt :bar-color))
-    (rect (- pos w2)  (:y low-right) (+ pos w2) (- (:y low-right) height) )))
+    ;; (pprint (str w2  "  " y0))
+    ;; (pprint (str pos  "  " height))
+    (rect (- pos w2) y0 (+ pos w2) height )))
 
 
 ;; == Functions for drawing plot background elements==
@@ -171,11 +172,10 @@
 
 
 (defn rounded-string [x]
-  (let  [ [fc ex] (map read-string (split (format "%E" x) #"E"))
-          fmt (str "%." (Math/max   (- 1 ex) 0) "f" )]
-    (format fmt x))
-  )
-
+  (if (string? x) x
+      (let  [ [fc ex] (map read-string (split (format "%E" x) #"E"))
+              fmt (str "%." (Math/max   (- 1 ex) 0) "f" )]
+        (format fmt x))))
 
 (defn draw-tick-labels
   "Writes positions of tick marks to 'axis' "
@@ -226,15 +226,15 @@
 
 (defn draw-data-bars
   "Bar chart"
-  [^Plot plot ^Scale label-axis ^Scale value-axis labels values & opts]
+  [^Scale label-axis ^Scale value-axis labels values & opts]
   (let [opt (coll2map opts)
         pos (map (:mapping label-axis) labels)
         height (map (:mapping value-axis) values)
-        plot-data (interleave pos height)
-        width (* 0.85 (apply - (take 2 pos)))
-        ]
+         plot-data (interleave pos height)
+         width (* 0.85 (apply - (take 2 pos)))
+        y0 ( (:mapping value-axis) (first (:range value-axis)) )]
     (doseq [ [p h] (partition 2 plot-data) ]
-      (draw-bar plot p h width opt ))))
+      (draw-bar p h width y0 opt ))))
 
 
 (defn draw-data-points

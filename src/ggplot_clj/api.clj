@@ -90,6 +90,13 @@
     ;;(pprint (count  (concat scl dt opts)))
     (fn []  (apply  draw-data-line (concat scl dt (-> opts seq flatten))))))
 
+(defmethod get-draw-fn :bar
+  ;;Function for bar plot
+  [_ aes position data scales & opts]
+  (let [  dt (get-data data aes :label :height )
+        scl (map #(get scales % nil) [:label :height ])]
+    (fn []  (apply  draw-data-bars (concat scl dt (-> opts seq flatten))))))
+
 (defn compose-draw-fns [ & { :keys [ layers scales data] :as opts } ]
   (let [opt  (dissoc opts :layers :scales :data)
         all-data (reduce merge data (map :data layers))]
@@ -99,7 +106,7 @@
        (:geom layer) (:aes layer) (:position layer)
        all-data scales (merge  opt (:options layer))))))
 
-
+ 
 (defn- one-dimension-data
   [layers data dimension]
   (reduce concat  (for [layer layers]
@@ -112,11 +119,15 @@
         all-data (reduce merge data (map :data layers))
         all-x (one-dimension-data layers all-data :x)
         all-y (one-dimension-data layers all-data :y)
+        all-label (one-dimension-data layers all-data :label)
+        all-height (conj  (one-dimension-data layers all-data :height) 0)
         all-size (one-dimension-data layers all-data :size) 
         x-axis (if (empty? all-x) nil  (train-linear-scale plot all-x :x))
         y-axis (if (empty? all-y) nil (train-linear-scale plot all-y :y))
+        label-axis (if (empty? all-label) nil  (train-discrete-scale plot all-label :x))
+        height-axis (if (empty? all-height) nil  (train-linear-scale plot all-height :y))
         size-scale (if (empty? all-size) nil (train-size-scale all-size opt))]
-    {:x x-axis :y y-axis :size size-scale}))
+    {:x x-axis :y y-axis :label label-axis :height height-axis :size size-scale}))
 
 (defn scatter-plot [ x-seq y-seq & opts]
   (let [opt  (coll2map opts)
@@ -165,9 +176,9 @@
       ;; run applet
       (run a-bar-plot  :interactive)
       a-bar-plot
-      )))
+      ))
 
-(defn draw-data
+  (defn draw-data
   "A wrapper to run all listed functions on each update
   of the ggplot applet.
   draw-fns is a seq of pairs (function, its arguments) which are the
@@ -175,3 +186,26 @@
   [draw-fns]
   (fn []
     (doseq [[f args] (partition 2  draw-fns)]  (apply f args) )))
+  )
+
+(defn make-plot
+  "Combine necessary drawing functions
+  for a graph, given data, layers and options.
+  Returns a map wher drawing functions are stored under keys
+  :setup and :draw. The map is ment for the input to run-ggplot
+  macro"
+  [data layers & opts ]
+  (let [opt (coll2map opts)
+        plot (new-plot opt)
+        scales (train-scales plot layers data)
+        draw-fns (compose-draw-fns
+                  :layers layers
+                  :data data
+                  :scales scales)
+        xaxis (or (:x scales) (:label scales))
+        yaxis (or (:y scales) (:height scales))
+        init-fns [(fn [] (draw-plot-bg plot xaxis yaxis))] ]
+    ;;    scales
+    {:setup (setup (assoc opt :init-fns init-fns)),
+     :draw (fn [] (doseq  [f (concat  init-fns draw-fns )] (f) ))}
+    ))
